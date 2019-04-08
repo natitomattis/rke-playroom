@@ -12,7 +12,7 @@ This is not intended for anything production-related.
 [Installation](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html)
 
 - RKE
-Doiwnload the [latest version of RKE](https://github.com/rancher/rke/releases)
+Download the [latest version of RKE](https://github.com/rancher/rke/releases)
 
 ```bash
 mv rke_linux-amd64 /home/$USER/bin/rke
