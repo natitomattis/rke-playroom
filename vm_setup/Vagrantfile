@@ -1,0 +1,40 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Rancher RKE Demo
+
+# Config variables
+$number_of_nodes = 3
+$private_ip_prefix = '10.10.10'
+$vb_gui = false
+$vb_memory = 2048
+$vb_cpus = 2
+$rsync_folder_disabled = true
+
+Vagrant.configure("2") do |config|
+
+  # Define VM specs
+  config.vm.provider 'virtualbox' do |vb|
+    vb.gui = $vb_gui
+    vb.memory = $vb_memory
+    vb.cpus = $vb_cpus
+  end
+
+  # Create host nodes
+  (1..$number_of_nodes).each do |i|
+    hostname = 'rks-node-%02d' % i
+    node_ip = "#{$private_ip_prefix}.#{100+i}"
+
+    config.vm.define hostname do |node|
+      node.vm.box = "ubuntu/xenial64"
+      node.vm.hostname = hostname
+      node.vm.network 'private_network', ip: node_ip
+
+      # Paste public keys
+      node.vm.provision "ansible" do |ansible|
+        ansible.playbook = "main.yml"
+      end
+    end
+  end
+
+end

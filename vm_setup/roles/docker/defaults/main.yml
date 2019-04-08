@@ -1,0 +1,24 @@
+---
+
+docker_edition: "ce"
+docker_channel: "edge"
+
+docker_version: "18.09.4"
+docker_install_docker_compose: True
+docker_compose_version: "1.24.0"
+
+docker_users: ['vagrant']
+
+docker_cron_tasks:
+  - job: docker system prune -f
+    name: "Docker clean up"
+    schedule: ["0", "0", "*", "*", "0"]
+
+docker_daemon_options: ["fixed-cidr": "192.168.100.1/24","ipv6": true,"hosts": ["tcp://127.0.0.1:5000", "unix:///var/run/docker.sock"], "fixed-cidr-v6": "2001:db8:1::/64"]
+docker_daemon_environment: []
+
+docker_apt_key: "9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
+docker_repository: "deb [arch=amd64] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} {{ docker_channel }}"
+docker_apt_package_name: "{{ docker_version }}~{{ docker_edition }}~3-0~{{ ansible_distribution | lower }}"
+
+docker_apt_cache_time: 86400

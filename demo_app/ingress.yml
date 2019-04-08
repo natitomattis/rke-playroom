@@ -1,0 +1,13 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: rancher-demo-ingress
+spec:
+  rules:
+  - host: rancher-demo.domain.test
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: rancher-demo
+          servicePort: 8080
