@@ -14,10 +14,10 @@ This is not intended for anything production-related.
 - RKE
 Doiwnload the [latest version of RKE](https://github.com/rancher/rke/releases)
 
-´´´bash
+```bash
 mv rke_linux-amd64 /home/$USER/bin/rke
 chmod +x /home/$USER/bin/rke
-´´´
+```
 
 - Kubectl
 [Installation](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
@@ -26,18 +26,18 @@ chmod +x /home/$USER/bin/rke
 
 ### Init and provision the VMs
 
-´´´bash
+```bash
 cd vm_setup
 vagrant up
-´´´
+```
 
 ### Create cluster config file
 
 RKE uses cluster.yml file in order to configure the cluster, in this directory there is a default cluster.yml file. In order to create a new one you must run 
 
-´´´bash
+```bash
 rke config
-´´´
+```
 
 The cluster is created with the 3 vagrant VMs, and is added kubernetes dashboard addon.
 
