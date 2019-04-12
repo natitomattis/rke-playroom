@@ -1,0 +1,16 @@
+---
+- hosts: all
+  gather_facts: no
+  become: yes
+
+  tasks:
+  - name: Install python 2
+    raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
+
+  - name: Set authorized keys for Ansible admin
+    authorized_key:
+      user: root
+      state: present
+      key: "{{ item }}"
+    with_items: "{{ user_keys }}"
+    when: user_keys

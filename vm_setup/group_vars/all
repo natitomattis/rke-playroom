@@ -1,7 +1,0 @@
----
-user: vagrant
-docker_users: ["vagrant"]
-docker_repository: "deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable"
-docker_apt_package_name: "5:18.09.4~3-0~ubuntu-xenial"
-docker_daemon_options: ["--bip 192.168.66.1/24"]
-user_keys: ["http://172.16.0.189:81/ntomattis.keys"]

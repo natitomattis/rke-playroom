@@ -2,9 +2,17 @@
 - name: Install python 2
   raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
 
+- name: Create the user 'rke'
+  user:
+    name: rke
+    shell: /bin/bash
+    generate_ssh_key: yes
+    ssh_key_bits: 2048
+    ssh_key_file: .ssh/id_rsa
+
 - name: Set authorized keys taken from url
   authorized_key:
-    user: root
+    user: rke
     state: present
     key: "{{ item }}"
   with_items: "{{ user_keys }}"
@@ -52,3 +60,120 @@
     name: net.bridge.bridge-nf-call-iptables
     value: 1
     state: present
+
+- name: etcd nodes - Inbound rules
+  iptables:
+    chain: INPUT
+    protocol: "{{ item.protocol }}"
+    destination_port: "{{ item.dest_port }}"
+    jump: ACCEPT
+    comment: etcd nodes - Inbound rules
+  with_items:
+    - {dest_port: 2376 , protocol: tcp}
+    - {dest_port: 2379 , protocol: tcp}
+    - {dest_port: 2380 , protocol: tcp}
+    - {dest_port: 9099 , protocol: tcp}
+    - {dest_port: 10250, protocol: tcp}
+    - {dest_port: 8472 , protocol: udp}
+  when: "'etcd' in group_names"
+
+- name: etcd nodes - Outbound rules
+  iptables:
+    chain: OUTPUT
+    protocol: "{{ item.protocol }}"
+    source_port: "{{ item.src_port }}"
+    jump: ACCEPT
+    comment: etcd nodes - Outbound rules
+  with_items:
+    - {src_port: 443  , protocol: tcp}
+    - {src_port: 2379 , protocol: tcp}
+    - {src_port: 2380 , protocol: tcp}
+    - {src_port: 6443 , protocol: tcp}
+    - {src_port: 9099 , protocol: tcp}
+    - {src_port: 8472 , protocol: udp}
+  when: "'etcd' in group_names"
+
+- name: controlplane nodes - Inbound rules
+  iptables:
+    chain: INPUT
+    protocol: "{{ item.protocol }}"
+    destination_port: "{{ item.dest_port }}"
+    jump: ACCEPT
+    comment: controlplane nodes - Inbound rules
+  with_items:
+    - {dest_port: 80            , protocol: tcp}
+    - {dest_port: 443           , protocol: tcp}
+    - {dest_port: 2376          , protocol: tcp}
+    - {dest_port: 6443          , protocol: tcp}
+    - {dest_port: 9099          , protocol: tcp}
+    - {dest_port: 10250         , protocol: tcp}
+    - {dest_port: 10254         , protocol: tcp}
+    - {dest_port: "30000:32767" , protocol: tcp}
+    - {dest_port: "30000:32767" , protocol: udp}
+    - {dest_port: 8472          , protocol: udp}
+  when: "'controlplane' in group_names"
+
+- name: controlplane nodes - Outbound rules
+  iptables:
+    chain: OUTPUT
+    protocol: "{{ item.protocol }}"
+    source_port: "{{ item.src_port }}"
+    jump: ACCEPT
+    comment: controlplane nodes - Outbound rules
+  with_items:
+    - {src_port: 443   , protocol: tcp}
+    - {src_port: 2379  , protocol: tcp}
+    - {src_port: 2380  , protocol: tcp}
+    - {src_port: 9099  , protocol: tcp}
+    - {src_port: 10250 , protocol: tcp}
+    - {src_port: 10254 , protocol: tcp}
+    - {src_port: 8472  , protocol: udp}
+  when: "'controlplane' in group_names"
+
+
+- name: worker nodes - Inbound rules
+  iptables:
+    chain: INPUT
+    protocol: "{{ item.protocol }}"
+    destination_port: "{{ item.dest_port }}"
+    jump: ACCEPT
+    comment: worker nodes - Inbound rules
+  with_items:
+    - {dest_port: 80            , protocol: tcp}
+    - {dest_port: 443           , protocol: tcp}
+    - {dest_port: 2376          , protocol: tcp}
+    - {dest_port: 9099          , protocol: tcp}
+    - {dest_port: 10250         , protocol: tcp}
+    - {dest_port: 10254         , protocol: tcp}
+    - {dest_port: "30000:32767" , protocol: tcp}
+    - {dest_port: "30000:32767" , protocol: udp}
+    - {dest_port: 8472          , protocol: udp}
+  when: "'worker' in group_names"
+
+- name: worker nodes - Outbound rules
+  iptables:
+    chain: OUTPUT
+    protocol: "{{ item.protocol }}"
+    source_port: "{{ item.src_port }}"
+    jump: ACCEPT
+    comment: worker nodes - Outbound rules
+  with_items:
+    - {src_port: 443  , protocol: tcp}
+    - {src_port: 6443 , protocol: tcp}
+    - {src_port: 9099 , protocol: tcp}
+    - {src_port: 10254, protocol: tcp}
+    - {src_port: 8472 , protocol: udp}
+  when: "'worker' in group_names"
+
+- name: RKE nodes - Outbound rules
+  iptables:
+    chain: OUTPUT
+    protocol: "{{ item.protocol }}"
+    source_port: "{{ item.src_port }}"
+    jump: ACCEPT
+    comment: RKE nodes - Outbound rules
+  with_items:
+    - {src_port: 22   , protocol: tcp}
+    - {src_port: 6443 , protocol: tcp}
+  when: "'master' in group_names"
+

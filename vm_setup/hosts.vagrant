@@ -1,0 +1,17 @@
+[etcd]
+buu1    ansible_host=10.10.10.101   ansible_user=root
+buu2    ansible_host=10.10.10.102   ansible_user=root
+buu3    ansible_host=10.10.10.103   ansible_user=root
+
+[controlplane]
+buu1    ansible_host=10.10.10.101   ansible_user=root
+buu2    ansible_host=10.10.10.102   ansible_user=root
+buu3    ansible_host=10.10.10.103   ansible_user=root
+
+[worker]
+buu1    ansible_host=10.10.10.101   ansible_user=root
+buu2    ansible_host=10.10.10.102   ansible_user=root
+buu3    ansible_host=10.10.10.103   ansible_user=root
+
+[master]
+piccolo ansible_host=172.16.0.131   ansible_user=root
