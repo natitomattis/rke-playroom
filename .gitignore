@@ -2,3 +2,5 @@
 *.retry
 *.log
 docs/*
+kube_config_cluster.yml
+vm_setup/hosts
