@@ -1,95 +1,112 @@
 ---
-- name: install python 2
-  raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
 
-- name: Fail if Docker version is < 17.03
-  fail:
-    msg: "docker_version must be >= 17.03, yours is set to {{ docker_version }}."
-  when: docker_version | version_compare("17.03", "<")
+- name: Disable pinned Docker version
+  file:
+    dest: "/etc/apt/preferences.d/docker-ce.pref"
+    state: "absent"
+  when: not docker__version | d()
 
-- name: Install Docker and role dependencies
+- name: Enable pinned Docker version
+  template:
+    src: "etc/apt/preferences.d/docker-ce.pref.j2"
+    dest: "/etc/apt/preferences.d/docker-ce.pref"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  when: docker__version | d()
+  register: docker__register_new_version
+
+- name: Install Docker's dependencies
   apt:
-    name: "{{ item }}"
-    state: "present"
-    install_recommends: False
-    update_cache: True
-    cache_valid_time: "{{ docker_apt_cache_time }}"
-  with_items:
-    - "apt-transport-https"
-    - "ca-certificates"
-    - "software-properties-common"
-    - "cron"
+    name: "{{ docker__package_dependencies }}"
 
-- name:    Add Docker GPG key
-  apt_key: 
-    url: https://download.docker.com/linux/ubuntu/gpg
+- name: Add Docker's public PGP key to the APT keyring
+  apt_key:
+    id: "{{ docker__apt_key_id }}"
+    url: "{{ docker__apt_key_url }}"
 
-- name:    Add Docker APT repository
+- name: Configure Docker's upstream APT repository
   apt_repository:
-    repo: "{{ docker_repository }}"
+    repo: "{{ docker__apt_repository }}"
+    update_cache: true
 
 - name: Install Docker
   apt:
-    name: "docker-{{ docker_edition }}={{ docker_apt_package_name }}"
-    state: "present"
-    update_cache: True
-    install_recommends: False
-    cache_valid_time: "{{ docker_apt_cache_time }}"
+    name: "docker-{{ docker__edition }}"
+    state: "{{ docker__state }}"
 
-- name: Remove Upstart config file
-  file:
-    path: "/etc/default/docker"
-    state: "absent"
+- name: Add user(s) to "docker" group
+  user:
+    name: "{{ item }}"
+    groups: "docker"
+    append: true
+  with_items: "{{ docker__users }}"
 
-- name: Ensure systemd directory exists
+- name: Create Docker configuration directories
   file:
-    path: "/etc/systemd/system"
+    path: "{{ item }}"
     state: "directory"
     owner: "root"
     group: "root"
     mode: "0755"
+  with_items:
+    - "/etc/docker"
+    - "/etc/systemd/system/docker.service.d"
 
-- name: Generate systemd unit file
+- name: Configure Docker daemon options (json)
   template:
-    src: "etc/systemd/system/docker.service.j2"
-    dest: "/etc/systemd/system/docker.service"
+    src: "etc/docker/daemon.json.j2"
+    dest: "/etc/docker/daemon.json"
     owner: "root"
     group: "root"
     mode: "0644"
-  register: docker_register_systemd_service
-
-- name: Reload systemd daemon
-  command: "systemctl daemon-reload"
+  when: docker__default_daemon_json or docker__daemon_json
   notify: ["Restart Docker"]
-  when: (docker_register_systemd_service and
-         docker_register_systemd_service | changed)
 
-- name: Add specific users to "docker" group
-  user:
-    name: "{{ item }}"
-    groups: "docker"
-    append: True
-  with_items: "{{ docker_users }}"
-  when: docker_users
-
-- name: Check if docker-compose is installed
-  apt: 
-    name: docker-compose 
-    state: installed
-  check_mode: true
-  register: compose_not_installed
-
-- name: Install Docker Compose
-  get_url:
-    url: "https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-Linux-x86_64"
-    dest: "/usr/local/bin/docker-compose"
+- name: Configure Docker daemon environment variables
+  template:
+    src: "etc/systemd/system/docker.service.d/environment.conf.j2"
+    dest: "/etc/systemd/system/docker.service.d/environment.conf"
     owner: "root"
     group: "root"
-    mode: "0755"
-  when: docker_install_docker_compose
+    mode: "0644"
+  register: docker__register_daemon_environment
+  when: docker__daemon_environment
+  notify: ["Restart Docker"]
 
+- name: Configure custom systemd unit file override
+  template:
+    src: "etc/systemd/system/docker.service.d/custom.conf.j2"
+    dest: "/etc/systemd/system/docker.service.d/custom.conf"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  register: docker__register_custom_override
+  when: docker__systemd_override | d()
+  notify: ["Restart Docker"]
 
-- name: Create cron tasks for Docker commands
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: true
+  when: (docker__register_daemon_flags | d() and
+         docker__register_daemon_flags is changed)
+         or (docker__register_daemon_environment | d() and
+         docker__register_daemon_environment is changed)
+         or (docker__register_custom_override | d() and
+         docker__register_custom_override is changed)
+  notify: ["Restart Docker"]
+
+- name: Remove Docker related cron jobs
+  file:
+    path: "/etc/cron.d/{{ item.cron_file }}"
+    state: "absent"
+  with_items: "{{ docker__cron_jobs }}"
+  when:
+    - item.state | d("present") == "absent"
+    - item.name | d() and item.job | d()
+    - item.schedule | d() and item.cron_file | d()
+
+- name: Create Docker related cron jobs
   cron:
     name: "{{ item.name }}"
     job: "{{ item.job }}"
@@ -98,5 +115,10 @@
     day: "{{ item.schedule[2] }}"
     month: "{{ item.schedule[3] }}"
     weekday: "{{ item.schedule[4] }}"
-  with_items: "{{ docker_cron_tasks }}"
-  when: docker_cron_tasks
+    cron_file: "{{ item.cron_file }}"
+    user: "{{ item.user | d('root') }}"
+  with_items: "{{ docker__cron_jobs }}"
+  when:
+    - item.state | d("present") != "absent"
+    - item.name | d() and item.job | d()
+    - item.schedule | d() and item.cron_file | d()

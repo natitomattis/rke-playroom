@@ -1,8 +1,8 @@
 ---
 - hosts: all
-  gather_facts: no
   become: yes
   roles:
-    - init
+    - user
+    - kernel_modules
+    - iptables
     - docker
-

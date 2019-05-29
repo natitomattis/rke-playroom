@@ -1,24 +1,44 @@
 ---
 
-docker_edition: "ce"
-docker_channel: "edge"
+docker__edition: "ce"
+docker__channel: ["stable"]
+docker__version: "18.06.2"
+docker__state: "present"
 
-docker_version: "18.09.4"
-docker_install_docker_compose: True
-docker_compose_version: "1.24.0"
+docker__users: ["{{ ansible_env.SUDO_USER | d('root') }}"]
 
-docker_users: ['vagrant']
+docker__registries: []
 
-docker_cron_tasks:
-  - job: docker system prune -f
-    name: "Docker clean up"
+docker__default_daemon_json: |
+  "log-driver": "journald",
+  "fixed-cidr": "192.168.1.1/24"
+docker__daemon_json: ""
+
+docker__daemon_flags:
+  - "-H unix://"
+
+docker__daemon_environment: []
+
+docker__systemd_override: ""
+
+docker__cron_jobs_prune_flags: "af"
+docker__cron_jobs:
+  - name: "Docker disk clean up"
+    job: "docker system prune -{{ docker__cron_jobs_prune_flags }} > /dev/null 2>&1"
     schedule: ["0", "0", "*", "*", "0"]
+    cron_file: "docker-disk-clean-up"
+    user: "{{ (docker__users | first) | d('root') }}"
 
-docker_daemon_options: ["fixed-cidr": "192.168.100.1/24","ipv6": true,"hosts": ["tcp://127.0.0.1:5000", "unix:///var/run/docker.sock"], "fixed-cidr-v6": "2001:db8:1::/64"]
-docker_daemon_environment: []
+docker__package_dependencies:
+  - "apt-transport-https"
+  - "ca-certificates"
+  - "cron"
+  - "gnupg2"
+  - "software-properties-common"
 
-docker_apt_key: "9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
-docker_repository: "deb [arch=amd64] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} {{ docker_channel }}"
-docker_apt_package_name: "{{ docker_version }}~{{ docker_edition }}~3-0~{{ ansible_distribution | lower }}"
-
-docker_apt_cache_time: 86400
+docker__apt_key_id: "9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
+docker__apt_key_url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+docker__apt_repository: >
+  deb [arch=amd64]
+  https://download.docker.com/linux/{{ ansible_distribution | lower }}
+  {{ ansible_distribution_release }} {{ docker__channel | join (' ') }}
